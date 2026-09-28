@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
@@ -11,7 +11,7 @@ def health():
     })
 
 
-@app.route("/products")
+@app.route("/products", methods=["GET"])
 def products():
     return jsonify([
         {
@@ -25,6 +25,19 @@ def products():
             "price": 800
         }
     ])
+
+
+@app.route("/products", methods=["POST"])
+def create_product():
+    data = request.get_json()
+
+    product = {
+        "id": 3,
+        "name": data["name"],
+        "price": data["price"]
+    }
+
+    return jsonify(product), 201
 
 
 if __name__ == "__main__":
