@@ -39,9 +39,9 @@ jobs:
 
             # Start new container
             docker run -d \
-              --name user-service \
-              -p 5000:5000 \
-              sarathdevopslearn/user-service:2.0
+            --name user-service \
+            -p 5002:5000 \
+             sarathdevopslearn/user-service:2.0
 
             # Show running container
             docker ps
