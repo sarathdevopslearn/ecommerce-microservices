@@ -1,0 +1,47 @@
+name: User Service CD
+
+on:
+  workflow_run:
+    workflows:
+      - User Service CI
+    types:
+      - completed
+
+jobs:
+  deploy-user-service:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Deploy User Service to EC2
+      - name: Deploy User Service to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+
+            # Pull latest User Service image
+            docker pull sarathdevopslearn/user-service:2.0
+
+            # Stop existing container
+            docker stop user-service || true
+
+            # Remove existing container
+            docker rm user-service || true
+
+            # Start new container
+            docker run -d \
+              --name user-service \
+              -p 5000:5000 \
+              sarathdevopslearn/user-service:2.0
+
+            # Show running container
+            docker ps
