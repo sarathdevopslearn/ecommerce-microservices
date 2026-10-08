@@ -1,0 +1,147 @@
+name: Order Service CI/CD
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "services/order-service/**"
+      - ".github/workflows/order-service-ci.yml"
+
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "services/order-service/**"
+      - ".github/workflows/order-service-ci.yml"
+
+
+jobs:
+
+  # =========================
+  # CI - TEST + DOCKER BUILD
+  # =========================
+  test-order-service:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/order-service
+
+    steps:
+
+      # 1. Checkout source code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+
+      # 3. Cache pip dependencies
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-order-${{ hashFiles('services/order-service/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-order-
+
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+
+      # 5. Run tests
+      - name: Run pytest
+        run: |
+          python -m pytest
+
+
+      # 6. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      # 7. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest .
+
+
+      # 8. Push Docker image
+      - name: Push Docker image
+        run: |
+          docker push \
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+
+
+  # =========================
+  # CD - DEPLOY TO EC2
+  # =========================
+  deploy-order-service:
+
+    needs: test-order-service
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Deploy only after CI succeeds
+      - name: Deploy Order Service to EC2
+        uses: appleboy/ssh-action@v1.2.0
+
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+
+            echo "Logging into Docker Hub..."
+
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
+            docker login \
+              -u "${{ secrets.DOCKERHUB_USERNAME }}" \
+              --password-stdin
+
+
+            echo "Pulling latest Order Service image..."
+
+            docker pull \
+              ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+
+
+            echo "Stopping old container..."
+
+            docker stop order-service || true
+
+
+            echo "Removing old container..."
+
+            docker rm order-service || true
+
+
+            echo "Starting new Order Service container..."
+
+            docker run -d \
+              --name order-service \
+              -p 8002:8000 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+
+
+            echo "Order Service deployed successfully!"
+
+            docker ps
