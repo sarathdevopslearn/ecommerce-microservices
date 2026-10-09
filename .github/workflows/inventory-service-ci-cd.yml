@@ -1,0 +1,108 @@
+name: Inventory Service CI-CD
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "services/inventory-service/**"
+      - ".github/workflows/inventory-service-ci-cd.yml"
+
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "services/inventory-service/**"
+      - ".github/workflows/inventory-service-ci-cd.yml"
+
+jobs:
+  ci:
+    name: Test and Build Inventory Service
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/inventory-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: services/inventory-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest -v
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }} \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:latest .
+
+      - name: Push Docker image
+        if: github.event_name == 'push'
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:latest
+
+  cd:
+    name: Deploy Inventory Service to EC2
+    needs: ci
+    runs-on: ubuntu-latest
+
+    # Never deploy pull requests or non-master branches.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE_TAG
+          script: |
+            set -e
+
+            echo "$DOCKERHUB_TOKEN" | docker login \
+              -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            docker pull "$DOCKERHUB_USERNAME/inventory-service:$IMAGE_TAG"
+
+            docker stop inventory-service || true
+            docker rm inventory-service || true
+
+            docker run -d \
+              --name inventory-service \
+              --restart unless-stopped \
+              -p 5003:5003 \
+              "$DOCKERHUB_USERNAME/inventory-service:$IMAGE_TAG"
+
+            docker logout
+
+            sleep 3
+            curl --fail http://localhost:5003/health
