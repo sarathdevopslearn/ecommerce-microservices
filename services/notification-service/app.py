@@ -1,3 +1,4 @@
+
 from flask import Flask, jsonify, request
 from datetime import datetime, timezone
 
@@ -22,6 +23,7 @@ def create_notification():
     data = request.get_json(silent=True) or {}
 
     required_fields = ["user_id", "message", "type"]
+
     if not all(data.get(field) for field in required_fields):
         return jsonify({
             "error": "user_id, message and type are required"
@@ -63,8 +65,11 @@ def get_notification(notification_id):
         if notification["id"] == notification_id:
             return jsonify(notification), 200
 
-    return jsonify({"error": "Notification not found"}), 404
+    return jsonify({
+        "error": "Notification not found"
+    }), 404
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5005)
+```
