@@ -6,9 +6,17 @@ metadata:
   namespace: ecommerce
 spec:
   replicas: 1
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
   selector:
     matchLabels:
       app: payment-service
+
   template:
     metadata:
       labels:
@@ -17,5 +25,40 @@ spec:
       containers:
         - name: payment-service
           image: sarathdevopslearn/payment-service:1.0
+          imagePullPolicy: IfNotPresent
+
           ports:
             - containerPort: 5006
+              protocol: TCP
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5006
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5006
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
