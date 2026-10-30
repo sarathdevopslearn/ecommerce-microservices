@@ -11,3 +11,7 @@ __pycache__/
 *.tfvars.json
 crash.log
 crash.*.log
+# Additional Terraform and security protection
+**/.terraform/
+*.pem
+*.plan

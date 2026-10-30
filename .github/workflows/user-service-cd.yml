@@ -1,3 +1,4 @@
+
 name: User Service CD
 
 on:
@@ -7,41 +8,93 @@ on:
     types:
       - completed
 
+permissions:
+  contents: read
+
 jobs:
   deploy-user-service:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'master' &&
+      github.event.workflow_run.event == 'push'
 
     runs-on: ubuntu-latest
 
     steps:
-
-      # 1. Checkout repository
-      - name: Checkout code
+      - name: Checkout successful CI commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      # 2. Deploy User Service to EC2
-      - name: Deploy User Service to EC2
+      - name: Prepare remote directory
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            mkdir -p /tmp/ecommerce-k8s
 
-            # Pull latest User Service image
-            docker pull sarathdevopslearn/user-service:2.0
+      - name: Copy Kubernetes manifest to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "k8s/user-service-deployment.yaml"
+          target: "/tmp/ecommerce-k8s"
+          strip_components: 1
+          overwrite: true
 
-            # Stop existing container
-            docker stop user-service || true
+      - name: Deploy User Service
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/user-service:${{ github.event.workflow_run.head_sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE
+          script: |
+            set -eu
 
-            # Remove existing container
-            docker rm user-service || true
+            KUBECTL="sudo /usr/local/bin/k3s kubectl"
+            MANIFEST="/tmp/ecommerce-k8s/user-service-deployment.yaml"
 
-            # Start new container
-            docker run -d \
-            --name user-service \
-            -p 5002:5000 \
-             sarathdevopslearn/user-service:2.0
+            echo "Deploying User Service"
+            echo "Image: $IMAGE"
 
-            # Show running container
-            docker ps
+            echo "Updating Deployment manifest"
+
+            sed -i "s|^\([[:space:]]*image:\).*|\1 $IMAGE|" "$MANIFEST"
+
+            echo "Applying Kubernetes Deployment"
+
+            $KUBECTL apply -f "$MANIFEST"
+
+            echo "Waiting for rollout"
+
+            if ! $KUBECTL rollout status \
+              deployment/user-service \
+              -n ecommerce \
+              --timeout=180s; then
+
+              echo "Deployment failed. Rolling back."
+
+              $KUBECTL rollout undo \
+                deployment/user-service \
+                -n ecommerce
+
+              exit 1
+            fi
+
+            echo "Verifying User Service"
+
+            $KUBECTL get deployment user-service -n ecommerce
+
+            $KUBECTL get pods -n ecommerce \
+              -l app=user-service
+
+            $KUBECTL get endpoints user-service -n ecommerce
+
+            echo "User Service deployment completed."

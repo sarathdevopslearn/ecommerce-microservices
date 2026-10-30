@@ -27,6 +27,10 @@ spec:
           image: sarathdevopslearn/order-service:5.0
           imagePullPolicy: IfNotPresent
 
+          envFrom:
+            - configMapRef:
+                name: order-service-config
+
           ports:
             - containerPort: 8000
               protocol: TCP

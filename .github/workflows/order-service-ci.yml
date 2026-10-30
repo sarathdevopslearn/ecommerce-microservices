@@ -1,4 +1,5 @@
-name: Order Service CI/CD
+
+name: Order Service CI-CD
 
 on:
   push:
@@ -7,6 +8,8 @@ on:
     paths:
       - "services/order-service/**"
       - ".github/workflows/order-service-ci.yml"
+      - "k8s/order-service-config.yaml"
+      - "k8s/order-service-deployment.yaml"
 
   pull_request:
     branches:
@@ -14,15 +17,15 @@ on:
     paths:
       - "services/order-service/**"
       - ".github/workflows/order-service-ci.yml"
-
+      - "k8s/order-service-config.yaml"
+      - "k8s/order-service-deployment.yaml"
 
 jobs:
-
   # =========================
-  # CI - TEST + DOCKER BUILD
+  # CI - TEST AND BUILD
   # =========================
-  test-order-service:
-
+  ci:
+    name: Test and Build Order Service
     runs-on: ubuntu-latest
 
     defaults:
@@ -30,118 +33,124 @@ jobs:
         working-directory: services/order-service
 
     steps:
-
-      # 1. Checkout source code
       - name: Checkout code
         uses: actions/checkout@v4
 
-
-      # 2. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: pip
+          cache-dependency-path: services/order-service/requirements.txt
 
-
-      # 3. Cache pip dependencies
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-order-${{ hashFiles('services/order-service/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-order-
-
-
-      # 4. Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-
-      # 5. Run tests
-      - name: Run pytest
+      - name: Run tests
         run: |
-          python -m pytest
+          python -m pytest -v
 
-
-      # 6. Login to Docker Hub
       - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-
-      # 7. Build Docker image
       - name: Build Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest .
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ github.sha }} .
 
-
-      # 8. Push Docker image
       - name: Push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           docker push \
-            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
-
+            ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ github.sha }}
 
   # =========================
-  # CD - DEPLOY TO EC2
+  # CD - DEPLOY TO K3S
   # =========================
-  deploy-order-service:
-
-    needs: test-order-service
-
+  cd:
+    name: Deploy Order Service to K3s
+    needs: ci
     runs-on: ubuntu-latest
 
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Deploy only after CI succeeds
-      - name: Deploy Order Service to EC2
+      - name: Prepare remote directory
         uses: appleboy/ssh-action@v1.2.0
-
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-
           script: |
+            mkdir -p /tmp/ecommerce-k8s
 
-            echo "Logging into Docker Hub..."
+      - name: Copy Kubernetes manifests to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "k8s/order-service-config.yaml,k8s/order-service-deployment.yaml"
+          target: "/tmp/ecommerce-k8s"
+          strip_components: 1
+          overwrite: true
 
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
-            docker login \
-              -u "${{ secrets.DOCKERHUB_USERNAME }}" \
-              --password-stdin
+      - name: Deploy Order Service
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/order-service:${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE
+          script: |
+            set -e
 
+            KUBECTL="sudo /usr/local/bin/k3s kubectl"
 
-            echo "Pulling latest Order Service image..."
+            echo "Applying Order Service ConfigMap"
 
-            docker pull \
-              ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+            $KUBECTL apply \
+              -f /tmp/ecommerce-k8s/order-service-config.yaml
 
+            echo "Updating Deployment manifest image"
 
-            echo "Stopping old container..."
+            sed -i "s|^\([[:space:]]*image:\).*|\1 $IMAGE|" \
+              /tmp/ecommerce-k8s/order-service-deployment.yaml
 
-            docker stop order-service || true
+            echo "Applying updated Deployment"
 
+            $KUBECTL apply \
+              -f /tmp/ecommerce-k8s/order-service-deployment.yaml
 
-            echo "Removing old container..."
+            echo "Waiting for rollout"
 
-            docker rm order-service || true
+            if ! $KUBECTL rollout status \
+              deployment/order-service \
+              -n ecommerce --timeout=180s; then
 
+              echo "Deployment failed. Rolling back..."
 
-            echo "Starting new Order Service container..."
+              $KUBECTL rollout undo \
+                deployment/order-service \
+                -n ecommerce
 
-            docker run -d \
-              --name order-service \
-              -p 8002:8000 \
-              ${{ secrets.DOCKERHUB_USERNAME }}/order-service:latest
+              exit 1
+            fi
 
+            echo "Order Service deployed successfully"
 
-            echo "Order Service deployed successfully!"
+            $KUBECTL get deployment order-service -n ecommerce
 
-            docker ps
+            $KUBECTL get pods -n ecommerce -o wide

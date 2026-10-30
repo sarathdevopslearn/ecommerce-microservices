@@ -1,3 +1,4 @@
+
 name: Inventory Service CI-CD
 
 on:
@@ -7,6 +8,7 @@ on:
     paths:
       - "services/inventory-service/**"
       - ".github/workflows/inventory-service-ci-cd.yml"
+      - "k8s/inventory-service-deployment.yaml"
 
   pull_request:
     branches:
@@ -14,6 +16,7 @@ on:
     paths:
       - "services/inventory-service/**"
       - ".github/workflows/inventory-service-ci-cd.yml"
+      - "k8s/inventory-service-deployment.yaml"
 
 jobs:
   ci:
@@ -28,7 +31,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -41,68 +44,95 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: pytest -v
+        run: |
+          PYTHONPATH=. pytest -v
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        if: github.event_name == 'push'
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:latest .
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }} .
 
       - name: Push Docker image
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:latest
+          docker push \
+            ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }}
 
   cd:
-    name: Deploy Inventory Service to EC2
+    name: Deploy Inventory Service to K3s
     needs: ci
     runs-on: ubuntu-latest
 
-    # Never deploy pull requests or non-master branches.
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
-      - name: Deploy over SSH
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment directory on EC2
         uses: appleboy/ssh-action@v1.2.2
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE_TAG
+          script: |
+            mkdir -p /tmp/ecommerce-k8s
+
+      - name: Copy Kubernetes manifest to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "k8s/inventory-service-deployment.yaml"
+          target: "/tmp/ecommerce-k8s/"
+          strip_components: 1
+
+      - name: Apply Inventory Service deployment
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/inventory-service:${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE
           script: |
             set -e
 
-            echo "$DOCKERHUB_TOKEN" | docker login \
-              -u "$DOCKERHUB_USERNAME" --password-stdin
+            KUBECTL="sudo /usr/local/bin/k3s kubectl"
+            MANIFEST="/tmp/ecommerce-k8s/inventory-service-deployment.yaml"
 
-            docker pull "$DOCKERHUB_USERNAME/inventory-service:$IMAGE_TAG"
+            echo "Deploying Inventory Service"
+            echo "Image: $IMAGE"
 
-            docker stop inventory-service || true
-            docker rm inventory-service || true
+            $KUBECTL get deployment inventory-service -n ecommerce
 
-            docker run -d \
-              --name inventory-service \
-              --restart unless-stopped \
-              -p 5003:5003 \
-              "$DOCKERHUB_USERNAME/inventory-service:$IMAGE_TAG"
+            sed -i "s|^\([[:space:]]*image:\).*|\1 $IMAGE|" "$MANIFEST"
 
-            docker logout
+            $KUBECTL apply -f "$MANIFEST"
 
-            sleep 3
-            curl --fail http://localhost:5003/health
+            if ! $KUBECTL rollout status deployment/inventory-service \
+              -n ecommerce --timeout=180s; then
+
+              echo "Deployment failed. Rolling back..."
+
+              $KUBECTL rollout undo deployment/inventory-service \
+                -n ecommerce
+
+              exit 1
+            fi
+
+            echo "Inventory Service deployment successful"
+
+            $KUBECTL get deployment inventory-service -n ecommerce
+            $KUBECTL get pods -n ecommerce -o wide
+            $KUBECTL get endpoints inventory-service -n ecommerce
