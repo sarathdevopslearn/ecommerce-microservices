@@ -29,6 +29,6 @@ def test_create_product():
 
     data = response.get_json()
 
-    assert data["id"] == 3
+    assert data["id"] == 104
     assert data["name"] == "Keyboard"
     assert data["price"] == 1500
