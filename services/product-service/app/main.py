@@ -1,7 +1,22 @@
 
 from flask import Flask, jsonify, request
+from prometheus_flask_exporter import PrometheusMetrics
 
 app = Flask(__name__)
+
+# Prometheus instrumentation
+metrics = PrometheusMetrics(
+    app,
+    path="/metrics",
+    group_by="endpoint"
+)
+
+# Application information metric
+metrics.info(
+    "product_service_info",
+    "Product Service application information",
+    version="1.0.0"
+)
 
 # Temporary in-memory product data.
 # IDs match the Inventory Service.
