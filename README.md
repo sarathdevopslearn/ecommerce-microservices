@@ -157,17 +157,20 @@ The following structure represents the main project directories and files.
 ecommerce-microservices/
 │
 ├── .github/
-│   └── workflows/
+│   └── workflows/                 # GitHub Actions CI/CD pipelines
 │
-├── api-gateway/
+├── docs/
+│   ├── architecture.png           # Project architecture diagram
+│   └── screenshots/
+│       ├── aws/                   # AWS EC2 and Security Group
+│       ├── dockerhub/              # Docker Hub images and tags
+│       ├── github-actions/         # CI/CD workflow evidence
+│       ├── grafana/                # Grafana dashboards and Prometheus
+│       └── kubernetes/             # K3s cluster and Kubernetes resources
 │
-├── infrastructure/
+├── infrastructure/                # Terraform infrastructure files
 │
-├── k8s/
-│
-├── monitoring/
-│
-├── scripts/
+├── k8s/                           # Kubernetes deployment and service manifests
 │
 ├── services/
 │   ├── product-service/
@@ -177,18 +180,25 @@ ecommerce-microservices/
 │   ├── payment-service/
 │   └── notification-service/
 │
-├── docs/
-│   ├── architecture.png
-│   └── screenshots/
-│
-├── screenshots/
-│
-├── monitoring-values.yaml
-├── README.md
-└── .gitignore
+├── monitoring-values.yaml         # Helm monitoring configuration
+├── .gitignore
+└── README.md
 ```
 
+### Key Directories
+
+- **`.github/workflows/`** – Automated CI/CD pipelines using GitHub Actions.
+- **`docs/`** – Architecture diagram and project implementation screenshots.
+- **`infrastructure/`** – Terraform configuration for AWS resources.
+- **`k8s/`** – Kubernetes manifests for deploying microservices.
+- **`services/`** – Source code and Dockerfiles for all six microservices.
+- **`monitoring-values.yaml`** – Custom Helm values for Prometheus and Grafana deployment.
+
+---
+
 ## 12. Project Screenshots
+
+This section provides visual evidence of the infrastructure, deployment pipelines, container registry and monitoring implementation.
 
 ### 12.1 Kubernetes Cluster
 
@@ -206,7 +216,7 @@ Screenshots demonstrating the K3s cluster and microservices deployment.
 
 ### 12.2 Monitoring – Prometheus and Grafana
 
-Prometheus metrics collection and Grafana monitoring dashboards.
+Prometheus collects application and infrastructure metrics, while Grafana provides monitoring dashboards and visualizations.
 
 ![Grafana Overview](docs/screenshots/grafana/grafana-overview.png)
 
@@ -222,8 +232,6 @@ Prometheus metrics collection and Grafana monitoring dashboards.
 
 ![Grafana Dashboards](docs/screenshots/grafana/grafana-dashboards-overview.png)
 
-![Prometheus Targets](docs/screenshots/grafana/prometheus-targets.png)
-
 ![Monitoring Helm Deployment](docs/screenshots/grafana/monitoring-helm-deployment.png)
 
 ![Prometheus Targets](docs/screenshots/grafana/prometheus-targets.png)
@@ -234,13 +242,51 @@ Prometheus metrics collection and Grafana monitoring dashboards.
 
 ### 12.3 AWS Infrastructure
 
-AWS EC2 infrastructure provisioned for the Kubernetes environment.
+AWS EC2 infrastructure provisioned for hosting the Kubernetes environment.
 
 ![AWS EC2 Instance](docs/screenshots/aws/aws-ec2-instance.png)
 
 ![AWS EC2 Instance Details](docs/screenshots/aws/aws-ec2-instance-details.png)
 
 ![AWS Security Group](docs/screenshots/aws/aws-security-group.png)
+
+### 12.4 GitHub Actions – CI/CD Pipelines
+
+GitHub Actions automates testing, building and deployment across all six microservices.
+
+![GitHub Actions Workflows](docs/screenshots/github-actions/github-actions-workflows-overview.png)
+
+#### Product Service
+
+![Product Service CI](docs/screenshots/github-actions/product-service-ci.png)
+
+![Product Service CD](docs/screenshots/github-actions/product-service-cd.png)
+
+#### User Service
+
+![User Service CI](docs/screenshots/github-actions/user-service-ci.png)
+
+![User Service CD](docs/screenshots/github-actions/user-service-cd.png)
+
+#### Combined CI/CD Workflows
+
+![Inventory Service CI/CD](docs/screenshots/github-actions/inventory-service-ci-cd.png)
+
+![Order Service CI/CD](docs/screenshots/github-actions/order-service-ci-cd.png)
+
+![Payment Service CI/CD](docs/screenshots/github-actions/payment-service-ci-cd.png)
+
+![Notification Service CI/CD](docs/screenshots/github-actions/notification-service-ci-cd.png)
+
+### 12.5 Docker Hub – Container Registry
+
+Docker Hub stores the container images built and published through the CI/CD pipelines.
+
+![Docker Hub Repositories](docs/screenshots/dockerhub/Dockerhub-images.png)
+
+![Product Service Image Tags](docs/screenshots/dockerhub/image-tags.png)
+
+---
 
 ## 13. Learning Outcomes
 
@@ -255,7 +301,9 @@ Through this end-to-end project, I gained hands-on experience in:
 - Managing container images using Docker Hub.
 - Configuring Kubernetes networking and application health checks.
 - Monitoring applications using Prometheus and Grafana.
-- Troubleshooting infrastructure, container, and application deployment issues.
+- Troubleshooting infrastructure, container and application deployment issues.
+
+---
 
 ## 14. Author
 
