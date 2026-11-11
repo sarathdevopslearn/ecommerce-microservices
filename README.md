@@ -6,108 +6,60 @@ This project demonstrates an end-to-end DevOps implementation for a Python-based
 
 The application consists of six independent microservices, containerized using Docker and deployed using Kubernetes (K3s).
 
-The infrastructure is provisioned using Terraform on AWS EC2. Continuous Integration and Continuous Deployment are automated using GitHub Actions. Prometheus and Grafana are used for application monitoring.
+The infrastructure is provisioned using Terraform on AWS EC2. Continuous Integration and Continuous Deployment (CI/CD) are automated using GitHub Actions. Prometheus and Grafana provide application and infrastructure monitoring.
 
-**Project objective:** Implement a practical DevOps workflow covering infrastructure provisioning, containerization, orchestration, CI/CD automation, deployment, and monitoring.
+**Project Objective:** To implement a practical DevOps workflow covering infrastructure provisioning, containerization, orchestration, CI/CD automation, application deployment, and monitoring.
 
-## 2. Architecture
+## 2. Project Architecture
 
-## 🏗️ Project Architecture
+The following diagram illustrates the end-to-end DevOps architecture, including CI/CD automation, Docker containerization, Kubernetes deployment, AWS infrastructure, and monitoring.
 
-The following diagram illustrates the complete CI/CD,
-containerization, Kubernetes deployment and monitoring architecture.
-
-![E-Commerce Microservices Architecture](docs/architecture.png)
-
-```text
-                  Developer
-                      |
-                      v
-               GitHub Repository
-                      |
-                      v
-                GitHub Actions
-                      |
-              Automated Testing
-                  (Pytest)
-                      |
-                      v
-               Docker Build
-                      |
-                      v
-                  Docker Hub
-                      |
-                      v
-               AWS EC2 - Ubuntu
-                      |
-                      v
-               K3s Kubernetes
-                      |
-          +-----------+-----------+
-          |           |           |
-          v           v           v
-       Product       User       Order
-       Service      Service    Service
-          |           |           |
-          +-----------+-----------+
-                      |
-          +-----------+-----------+
-          |           |           |
-          v           v           v
-      Inventory    Payment   Notification
-       Service     Service     Service
-
-          Monitoring Layer
-             Prometheus
-                  |
-                  v
-                Grafana
-
-       Infrastructure Provisioning
-                Terraform
-```
+![E-Commerce Microservices DevOps Architecture](docs/architecture.png)
 
 ## 3. Technology Stack
 
 | Category | Technology |
 |---|---|
-| Cloud | AWS EC2 |
-
+| Cloud Platform | AWS EC2 |
 | Infrastructure as Code | Terraform |
 | Operating System | Ubuntu Linux |
 | Containerization | Docker |
+| Container Registry | Docker Hub |
 | Orchestration | Kubernetes (K3s) |
 | CI/CD | GitHub Actions |
-| Image Registry | Docker Hub |
-| Programming | Python |
-| Frameworks | Flask, FastAPI |
+| Programming Language | Python |
+| Application Frameworks | Flask, FastAPI |
 | Testing | Pytest |
+| Code Formatting | Black |
 | Monitoring | Prometheus, Grafana |
+| Package Management | Helm |
 | Version Control | Git, GitHub |
 
 ## 4. Application Microservices
 
-| Service | Framework | Port |
-|---|---|---|
+The application consists of six independent Python-based microservices.
+
+| Microservice | Framework | Port |
+|---|---|---:|
 | Product Service | Flask | 5001 |
 | User Service | Flask | 5000 |
 | Order Service | FastAPI | 8000 |
 | Inventory Service | Flask | 5003 |
 | Payment Service | Flask | 5006 |
-| Notification Service | Flask | Verify configuration |
+| Notification Service | Flask | Configured port |
 
 ### Service Responsibilities
 
 - **Product Service:** Manages product information and product APIs.
 - **User Service:** Handles user-related operations.
-- **Order Service:** Handles order processing and integrates with other services.
+- **Order Service:** Handles order processing and communication with other services.
 - **Inventory Service:** Manages inventory information.
 - **Payment Service:** Handles payment-related operations.
 - **Notification Service:** Handles application notifications.
 
 ## 5. Infrastructure Provisioning – Terraform
 
-Terraform is used to provision AWS infrastructure.
+Terraform is used to provision and manage AWS infrastructure.
 
 Implemented configurations include:
 
@@ -119,73 +71,76 @@ Implemented configurations include:
 
 ## 6. Containerization – Docker
 
-Each microservice is containerized independently.
+Each microservice is containerized independently using Docker.
 
-Implemented activities:
+Implemented activities include:
 
-- Created Dockerfiles for microservices.
+- Created Dockerfiles for individual microservices.
 - Built Docker images.
-- Tagged and versioned images.
+- Tagged and versioned container images.
 - Published images to Docker Hub.
 - Used Docker Compose for local development and testing.
 
 ## 7. Kubernetes Deployment – K3s
 
-The six microservices are deployed on a Kubernetes K3s cluster.
+The six microservices are deployed using K3s, a lightweight Kubernetes distribution.
 
-Kubernetes configurations include:
+Kubernetes configurations and hands-on activities include:
 
 - Deployments and ReplicaSets.
-- ClusterIP and NodePort Services where required.
+- ClusterIP and NodePort Services.
 - ConfigMaps and Secrets.
 - Readiness and Liveness Probes.
 - Resource Requests and Limits.
-- Horizontal Pod Autoscaling.
-- Ingress Controller.
+- Horizontal Pod Autoscaling (HPA).
+- Ingress Controller and routing.
 - TLS configuration.
-- Role-Based Access Control.
+- Role-Based Access Control (RBAC).
 - Helm-based deployments.
 
-## 8. CI/CD – GitHub Actions
+## 8. CI/CD Automation – GitHub Actions
 
-Automated CI/CD workflows are implemented using GitHub Actions.
+GitHub Actions automates the application build, testing, container image publishing, and deployment workflow.
 
 ### Pipeline Workflow
 
-1. Checkout source code.
+1. Checkout application source code.
 2. Configure Python environment.
 3. Install application dependencies.
 4. Execute automated tests using Pytest.
 5. Perform code formatting checks using Black.
 6. Build Docker images.
 7. Push Docker images to Docker Hub.
-8. Deploy updated application images to the Kubernetes environment.
+8. Deploy updated application images to the Kubernetes environment using SSH-based automation.
 
-Additional pipeline features:
+### Additional CI/CD Features
 
 - Dependency caching.
 - Matrix builds.
 - Workflow artifacts.
 - Environment-based deployment configuration.
-- SSH-based deployment automation where configured.
+- Automated Docker image publishing.
+- SSH-based deployment automation.
 
 ## 9. Monitoring – Prometheus and Grafana
 
-Prometheus and Grafana are used for application monitoring.
+Prometheus and Grafana are used to monitor the microservices environment.
 
-Implemented activities:
+The monitoring stack is deployed using Helm in the Kubernetes environment.
 
-- Configured Prometheus metrics collection.
-- Added Prometheus as a Grafana data source.
-- Created a Product Service Availability dashboard.
-- Visualized application availability and monitoring metrics.
+Implemented activities include:
+
+- Prometheus metrics collection.
+- Grafana integration with Prometheus as a data source.
+- Product Service availability dashboard.
+- Visualization of application availability and monitoring metrics.
 
 ## 10. Key DevOps Concepts
 
-- Infrastructure as Code.
-- Containerization.
+- Infrastructure as Code (IaC).
+- Containerization and image management.
 - Kubernetes orchestration.
-- CI/CD automation.
+- CI/CD pipeline automation.
 - Automated application testing.
 - Container image versioning.
 - Kubernetes health checks.
@@ -196,8 +151,23 @@ Implemented activities:
 
 ## 11. Repository Structure
 
+The following structure represents the main project directories and files.
+
 ```text
 ecommerce-microservices/
+│
+├── .github/
+│   └── workflows/
+│
+├── api-gateway/
+│
+├── infrastructure/
+│
+├── k8s/
+│
+├── monitoring/
+│
+├── scripts/
 │
 ├── services/
 │   ├── product-service/
@@ -207,51 +177,50 @@ ecommerce-microservices/
 │   ├── payment-service/
 │   └── notification-service/
 │
-├── k8s/
-│   ├── deployments/
-│   ├── services/
-│   ├── ingress/
-│   └── configurations/
+├── docs/
+│   ├── architecture.png
+│   └── screenshots/
 │
-├── monitoring/
-│   ├── prometheus/
-│   └── grafana/
+├── screenshots/
 │
-├── scripts/
-│
+├── monitoring-values.yaml
 ├── README.md
 └── .gitignore
 ```
 
-*Update this example to match the actual repository folders and files.*
-
 ## 12. Project Screenshots
 
-Add screenshots demonstrating:
+Screenshots will demonstrate the actual implementation and successful execution of the DevOps project.
 
-- GitHub Actions successful CI/CD execution.
-- Docker Hub repositories and images.
-- Kubernetes pods and services.
+The following evidence will be added:
+
+- GitHub Actions CI/CD pipeline execution.
+- Docker Hub repositories and published images.
 - AWS EC2 infrastructure.
-- Prometheus targets.
-- Grafana monitoring dashboard.
+- Kubernetes pods and services.
+- Kubernetes deployment and ingress configuration.
+- Prometheus monitoring targets.
+- Grafana Product Service availability dashboard.
 
 ## 13. Learning Outcomes
 
-Through this project, I gained hands-on experience in:
+Through this end-to-end project, I gained hands-on experience in:
 
 - Provisioning cloud infrastructure using Terraform.
+- Managing AWS EC2 infrastructure.
+- Working with Linux and Bash scripting.
 - Containerizing Python applications using Docker.
-- Deploying microservices using Kubernetes.
+- Deploying microservices using Kubernetes (K3s).
 - Building CI/CD pipelines using GitHub Actions.
 - Managing container images using Docker Hub.
+- Configuring Kubernetes networking and application health checks.
 - Monitoring applications using Prometheus and Grafana.
-- Troubleshooting infrastructure, containers, and application deployments.
+- Troubleshooting infrastructure, container, and application deployment issues.
 
-## Author
+## 14. Author
 
 **DevOps Project Portfolio**
 
-Skills: AWS | Terraform | Linux | Docker | Kubernetes | GitHub Actions | CI/CD | Prometheus | Grafana
+**Technical Skills:** AWS | Terraform | Linux | Bash | Docker | Kubernetes | K3s | GitHub Actions | CI/CD | Prometheus | Grafana
 
-GitHub: Add your GitHub profile URL
+**GitHub:** Add your GitHub profile URL.
