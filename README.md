@@ -190,17 +190,57 @@ ecommerce-microservices/
 
 ## 12. Project Screenshots
 
-Screenshots will demonstrate the actual implementation and successful execution of the DevOps project.
+### 12.1 Kubernetes Cluster
 
-The following evidence will be added:
+Screenshots demonstrating the K3s cluster and microservices deployment.
 
-- GitHub Actions CI/CD pipeline execution.
-- Docker Hub repositories and published images.
-- AWS EC2 infrastructure.
-- Kubernetes pods and services.
-- Kubernetes deployment and ingress configuration.
-- Prometheus monitoring targets.
-- Grafana Product Service availability dashboard.
+![K3s Cluster Nodes](docs/screenshots/kubernetes/k3s-cluster-nodes.png)
+
+![Kubernetes Pods](docs/screenshots/kubernetes/kubernetes-pods.png)
+
+![Kubernetes Deployments](docs/screenshots/kubernetes/kubernetes-deployments.png)
+
+![Kubernetes Services](docs/screenshots/kubernetes/kubernetes-services.png)
+
+![Kubernetes Ingress](docs/screenshots/kubernetes/kubernetes-ingress.png)
+
+### 12.2 Monitoring – Prometheus and Grafana
+
+Prometheus metrics collection and Grafana monitoring dashboards.
+
+![Grafana Overview](docs/screenshots/grafana/grafana-overview.png)
+
+![Product Service Availability](docs/screenshots/grafana/grafana-product-service-dashboard.png)
+
+![HTTP Requests Per Second](docs/screenshots/grafana/grafana-http-requests-per-second.png)
+
+![HTTP 5xx Errors](docs/screenshots/grafana/grafana-http-5xx-errors.png)
+
+![Kubernetes CPU Monitoring](docs/screenshots/grafana/grafana-kubernetes-compute-resources.png)
+
+![Kubernetes Memory Monitoring](docs/screenshots/grafana/grafana-kubernetes-memory-usage.png)
+
+![Grafana Dashboards](docs/screenshots/grafana/grafana-dashboards-overview.png)
+
+![Prometheus Targets](docs/screenshots/grafana/prometheus-targets.png)
+
+![Monitoring Helm Deployment](docs/screenshots/grafana/monitoring-helm-deployment.png)
+
+![Prometheus Targets](docs/screenshots/grafana/prometheus-targets.png)
+
+![Prometheus Application Targets](docs/screenshots/grafana/prometheus-targets-application.png)
+
+![Prometheus Infrastructure Targets](docs/screenshots/grafana/prometheus-targets-infrastructure.png)
+
+### 12.3 AWS Infrastructure
+
+AWS EC2 infrastructure provisioned for the Kubernetes environment.
+
+![AWS EC2 Instance](docs/screenshots/aws/aws-ec2-instance.png)
+
+![AWS EC2 Instance Details](docs/screenshots/aws/aws-ec2-instance-details.png)
+
+![AWS Security Group](docs/screenshots/aws/aws-security-group.png)
 
 ## 13. Learning Outcomes
 
